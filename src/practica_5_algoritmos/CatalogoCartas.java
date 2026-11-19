@@ -3,7 +3,6 @@ package practica_5_algoritmos;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 
 /** Agrupa las cartas por cada valor disponible para la consulta. */
@@ -38,21 +37,21 @@ public final class CatalogoCartas {
         return List.copyOf(porDefensa.keySet());
     }
 
-    public Optional<Consulta> porNivel(int nivel) {
-        return consulta(porNivel.get(nivel));
+    public Consulta porNivel(int nivel) {
+        return consulta(porNivel.get(nivel), "nivel " + nivel);
     }
 
-    public Optional<Consulta> porAtributo(String atributo) {
+    public Consulta porAtributo(String atributo) {
         String clave = normalizarAtributo(atributo);
-        return clave == null ? Optional.empty() : consulta(porAtributo.get(clave));
+        return consulta(clave == null ? null : porAtributo.get(clave), "atributo " + atributo);
     }
 
-    public Optional<Consulta> porAtaque(int ataque) {
-        return consulta(porAtaque.get(ataque));
+    public Consulta porAtaque(int ataque) {
+        return consulta(porAtaque.get(ataque), "ataque " + ataque);
     }
 
-    public Optional<Consulta> porDefensa(int defensa) {
-        return consulta(porDefensa.get(defensa));
+    public Consulta porDefensa(int defensa) {
+        return consulta(porDefensa.get(defensa), "defensa " + defensa);
     }
 
     public record Consulta(ListaDobleCircular<Carta>.Cursor cursor, int total) { }
@@ -63,8 +62,11 @@ public final class CatalogoCartas {
         }
     }
 
-    private static Optional<Consulta> consulta(ListaDobleCircular<Carta> grupo) {
-        return grupo == null ? Optional.empty() : Optional.of(new Consulta(grupo.cursor(), grupo.getTamanio()));
+    private static Consulta consulta(ListaDobleCircular<Carta> grupo, String filtro) {
+        if (grupo == null) {
+            throw new IllegalArgumentException("No hay cartas para " + filtro);
+        }
+        return new Consulta(grupo.cursor(), grupo.getTamanio());
     }
 
     private static String normalizarAtributo(String atributo) {
