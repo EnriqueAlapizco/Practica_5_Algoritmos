@@ -11,6 +11,7 @@ public final class CatalogoCartas {
     private final Map<String, ListaDobleCircular<Carta>> porAtributo = new TreeMap<>();
     private final Map<Integer, ListaDobleCircular<Carta>> porAtaque = new TreeMap<>();
     private final Map<Integer, ListaDobleCircular<Carta>> porDefensa = new TreeMap<>();
+    private final Map<String, ListaDobleCircular<Carta>> porTipoMonstruo = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     public CatalogoCartas(ListaDobleCircular<Carta> cartas) {
         for (Carta carta : cartas) {
@@ -18,6 +19,7 @@ public final class CatalogoCartas {
             agregar(porAtributo, normalizarAtributo(carta.atributo()), carta);
             agregar(porAtaque, carta.ataque(), carta);
             agregar(porDefensa, carta.defensa(), carta);
+            agregar(porTipoMonstruo, carta.tipoMonstruo(), carta);
         }
     }
 
@@ -37,6 +39,10 @@ public final class CatalogoCartas {
         return List.copyOf(porDefensa.keySet());
     }
 
+    public List<String> tiposMonstruo() {
+        return List.copyOf(porTipoMonstruo.keySet());
+    }
+
     public Consulta porNivel(int nivel) {
         return consulta(porNivel.get(nivel), "nivel " + nivel);
     }
@@ -52,6 +58,10 @@ public final class CatalogoCartas {
 
     public Consulta porDefensa(int defensa) {
         return consulta(porDefensa.get(defensa), "defensa " + defensa);
+    }
+
+    public Consulta porTipoMonstruo(String tipo) {
+        return consulta(tipo == null ? null : porTipoMonstruo.get(tipo.strip()), "tipo de monstruo " + tipo);
     }
 
     public record Consulta(ListaDobleCircular<Carta>.Cursor cursor, int total) { }

@@ -11,6 +11,8 @@ import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -42,7 +44,8 @@ final class VisorCartas extends JFrame {
     private static final Color ACENTO = new Color(0xF3C582);
 
     private enum Filtro {
-        TODAS("Todas"), NIVEL("Nivel"), ATRIBUTO("Atributo"), ATAQUE("Ataque"), DEFENSA("Defensa");
+        TODAS("Todas"), NIVEL("Nivel"), ATRIBUTO("Atributo"), ATAQUE("Ataque"), DEFENSA("Defensa"),
+        TIPO_MONSTRUO("Tipo de monstruo");
 
         private final String etiqueta;
 
@@ -54,11 +57,11 @@ final class VisorCartas extends JFrame {
     private final ListaDobleCircular<Carta> cartas;
     private final CatalogoCartas catalogo;
     private final JComboBox<Object> valores = new JComboBox<>();
-    private final JPanel selector = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-    private final JLabel etiquetaValor = texto("", 13, Font.PLAIN, SECUNDARIO);
+    private final JPanel selector = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
     private final JLabel nombre = texto("", 25, Font.BOLD, TEXTO);
     private final JLabel detalle = texto("", 15, Font.PLAIN, SECUNDARIO);
     private final JLabel posicion = texto("", 15, Font.BOLD, ACENTO);
+    private final MusicaFondo musica = new MusicaFondo();
     private final ImagenCarta imagenActual;
     private final ImagenCarta imagenAnterior;
     private final ImagenCarta imagenSiguiente;
@@ -90,13 +93,25 @@ final class VisorCartas extends JFrame {
         contenido.add(escaparate(), BorderLayout.CENTER);
         contenido.add(ficha(), BorderLayout.SOUTH);
         setContentPane(contenido);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowOpened(WindowEvent evento) {
+                musica.iniciar();
+            }
+        });
         setMinimumSize(new Dimension(730, 650));
         cambiarFiltro(Filtro.TODAS);
         pack();
         setLocationRelativeTo(null);
         tecla("LEFT", "anterior", () -> mover(false));
         tecla("RIGHT", "siguiente", () -> mover(true));
+    }
+
+    @Override
+    public void dispose() {
+        musica.cerrar();
+        super.dispose();
     }
 
     private JPanel encabezado() {
@@ -107,6 +122,14 @@ final class VisorCartas extends JFrame {
         titulo.setOpaque(false);
         titulo.add(texto("Dueling Heroes", 32, Font.BOLD, TEXTO), BorderLayout.CENTER);
         titulo.add(texto("25.º aniversario · Mega Pack MP23", 14, Font.PLAIN, SECUNDARIO), BorderLayout.SOUTH);
+        musica.setContentAreaFilled(false);
+        musica.setOpaque(true);
+        musica.setBackground(PANEL);
+        musica.setForeground(ACENTO);
+        musica.setPreferredSize(new Dimension(44, 38));
+        musica.setBorder(BorderFactory.createLineBorder(BORDE));
+        musica.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        titulo.add(musica, BorderLayout.EAST);
         encabezado.add(titulo, BorderLayout.NORTH);
 
         JPanel controles = new JPanel(new BorderLayout(8, 0));
@@ -132,13 +155,10 @@ final class VisorCartas extends JFrame {
         controles.add(botones, BorderLayout.WEST);
 
         selector.setOpaque(false);
-        etiquetaValor.setLabelFor(valores);
-        valores.setPreferredSize(new Dimension(116, 33));
         valores.setMaximumRowCount(10);
         valores.addActionListener(evento -> actualizarConsulta());
-        selector.add(etiquetaValor);
         selector.add(valores);
-        controles.add(selector, BorderLayout.EAST);
+        controles.add(selector, BorderLayout.CENTER);
         encabezado.add(controles, BorderLayout.SOUTH);
         return encabezado;
     }
@@ -178,13 +198,15 @@ final class VisorCartas extends JFrame {
     private void cambiarFiltro(Filtro opcion) {
         filtro = opcion;
         selector.setVisible(opcion != Filtro.TODAS);
-        etiquetaValor.setText(opcion.etiqueta);
+        valores.getAccessibleContext().setAccessibleName(opcion.etiqueta);
+        valores.setPreferredSize(new Dimension(opcion == Filtro.TIPO_MONSTRUO ? 150 : 116, 33));
         List<?> opciones = switch (opcion) {
             case TODAS -> List.of();
             case NIVEL -> catalogo.niveles();
             case ATRIBUTO -> catalogo.atributos();
             case ATAQUE -> catalogo.puntosAtaque();
             case DEFENSA -> catalogo.puntosDefensa();
+            case TIPO_MONSTRUO -> catalogo.tiposMonstruo();
         };
         valores.setModel(new DefaultComboBoxModel<>(opciones.toArray()));
         valores.setEnabled(!opciones.isEmpty());
@@ -193,6 +215,7 @@ final class VisorCartas extends JFrame {
 
     private void actualizarConsulta() {
         Object valor = valores.getSelectedItem();
+        valores.setToolTipText(valor == null ? null : valor.toString());
         if (filtro == Filtro.TODAS) {
             consulta = cartas.estaVacia() ? null : new CatalogoCartas.Consulta(cartas.cursor(), cartas.getTamanio());
         } else if (valor == null) {
@@ -203,6 +226,7 @@ final class VisorCartas extends JFrame {
                 case ATRIBUTO -> catalogo.porAtributo((String) valor);
                 case ATAQUE -> catalogo.porAtaque((Integer) valor);
                 case DEFENSA -> catalogo.porDefensa((Integer) valor);
+                case TIPO_MONSTRUO -> catalogo.porTipoMonstruo((String) valor);
                 default -> throw new IllegalStateException("Filtro no disponible");
             };
         }
@@ -254,6 +278,7 @@ final class VisorCartas extends JFrame {
             case ATRIBUTO -> "Atributo · " + valores.getSelectedItem();
             case ATAQUE -> "Ataque · " + carta.ataque();
             case DEFENSA -> "Defensa · " + carta.defensa();
+            case TIPO_MONSTRUO -> "Tipo · " + carta.tipoMonstruo();
         });
         posicion.setText(cursor.posicion() + " / " + consulta.total());
     }
